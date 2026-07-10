@@ -6,13 +6,17 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.celery_app import import_border_wait_times
-from app.database import BorderPort, BorderTimeImport, SessionLocal, WaitTime
+from app.database import BorderPort, BorderTimeImport, PrimaryLaneType, SecondaryLaneType, SessionLocal, WaitTime
 from app.schemas import (
     BorderPortCreate,
+    BorderPortNameRead,
+    BorderPortPrimaryLaneTypeRead,
     BorderPortRead,
+    BorderPortSecondaryLaneTypeRead,
     BorderTimeImportCreate,
     BorderTimeImportRead,
     WaitTimeCreate,
+    WaitTimeHistoryRead,
     WaitTimeRead,
 )
 
@@ -60,6 +64,105 @@ def create_border_port(payload: BorderPortCreate, db: Session = Depends(get_db))
 @app.get("/border-ports", response_model=List[BorderPortRead])
 def list_border_ports(db: Session = Depends(get_db)) -> List[BorderPort]:
     return db.query(BorderPort).all()
+
+
+@app.get("/border-ports/borders", response_model=List[str])
+def list_unique_borders(db: Session = Depends(get_db)) -> List[str]:
+    borders = db.query(BorderPort.border).filter(BorderPort.border.isnot(None)).distinct().all()
+    return sorted(border for (border,) in borders)
+
+
+@app.get("/border-ports/{border}/port-names", response_model=List[BorderPortNameRead])
+def list_port_names_by_border(border: str, db: Session = Depends(get_db)) -> List[BorderPort]:
+    return (
+        db.query(BorderPort)
+        .filter(BorderPort.border == border, BorderPort.port_name.isnot(None))
+        .order_by(BorderPort.port_name)
+        .all()
+    )
+
+
+@app.get("/border-ports/{border_port_id}/primary-lane-types", response_model=List[BorderPortPrimaryLaneTypeRead])
+def list_primary_lane_types_by_border_port(
+    border_port_id: int, db: Session = Depends(get_db)
+) -> List[BorderPortPrimaryLaneTypeRead]:
+    lane_types = (
+        db.query(WaitTime.primary_lane_type)
+        .filter(WaitTime.border_port_id == border_port_id, WaitTime.primary_lane_type.isnot(None))
+        .distinct()
+        .all()
+    )
+    return sorted(
+        (
+            BorderPortPrimaryLaneTypeRead(border_port_id=border_port_id, primary_lane_type=lane_type)
+            for (lane_type,) in lane_types
+        ),
+        key=lambda item: item.primary_lane_type.value,
+    )
+
+
+@app.get(
+    "/border-ports/{border_port_id}/primary-lane-types/{primary_lane_type}/secondary-lane-types",
+    response_model=List[BorderPortSecondaryLaneTypeRead],
+)
+def list_secondary_lane_types_by_border_port_and_primary_lane_type(
+    border_port_id: int,
+    primary_lane_type: PrimaryLaneType,
+    db: Session = Depends(get_db),
+) -> List[BorderPortSecondaryLaneTypeRead]:
+    secondary_lane_types = (
+        db.query(WaitTime.secondary_lane_type)
+        .filter(
+            WaitTime.border_port_id == border_port_id,
+            WaitTime.primary_lane_type == primary_lane_type,
+            WaitTime.secondary_lane_type.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    return sorted(
+        (
+            BorderPortSecondaryLaneTypeRead(
+                border_port_id=border_port_id,
+                primary_lane_type=primary_lane_type,
+                secondary_lane_type=secondary_lane_type,
+            )
+            for (secondary_lane_type,) in secondary_lane_types
+        ),
+        key=lambda item: item.secondary_lane_type.value,
+    )
+
+
+@app.get(
+    "/border-ports/{border_port_id}/primary-lane-types/{primary_lane_type}"
+    "/secondary-lane-types/{secondary_lane_type}/wait-times",
+    response_model=WaitTimeHistoryRead,
+)
+def list_wait_times_by_border_port_and_lane_types(
+    border_port_id: int,
+    primary_lane_type: PrimaryLaneType,
+    secondary_lane_type: SecondaryLaneType,
+    db: Session = Depends(get_db),
+) -> WaitTimeHistoryRead:
+    wait_times = (
+        db.query(WaitTime)
+        .filter(
+            WaitTime.border_port_id == border_port_id,
+            WaitTime.primary_lane_type == primary_lane_type,
+            WaitTime.secondary_lane_type == secondary_lane_type,
+            WaitTime.update_time.isnot(None),
+        )
+        .order_by(WaitTime.update_time.desc())
+        .all()
+    )
+    newest = wait_times[0] if wait_times else None
+    return WaitTimeHistoryRead(
+        operational_status=newest.operational_status if newest else None,
+        lanes_open=newest.lanes_open if newest else None,
+        primary_lane_type=primary_lane_type,
+        secondary_lane_type=secondary_lane_type,
+        wait_times=wait_times,
+    )
 
 
 @app.post("/wait-times", response_model=WaitTimeRead)

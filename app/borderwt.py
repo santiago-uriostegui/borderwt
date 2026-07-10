@@ -76,6 +76,7 @@ def import_border_wait_times(name: str) -> dict:
                             WaitTime.border_port_id == border_port.id,
                             WaitTime.primary_lane_type == primary_lane_type,
                             WaitTime.secondary_lane_type == secondary_lane_type,
+                            WaitTime.update_time.isnot(None),
                         )
                         .order_by(WaitTime.update_time.desc())
                         .first()
