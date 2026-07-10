@@ -1,7 +1,15 @@
 import os
 from enum import Enum as PyEnum
 
-from sqlalchemy import Column, DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, String, create_engine
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum as SQLAlchemyEnum,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+)
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 DATABASE_URL = os.getenv(
@@ -51,13 +59,19 @@ class WaitTime(Base):
     __tablename__ = "wait_times"
 
     id = Column(Integer, primary_key=True, index=True)
-    border_port_id = Column(Integer, ForeignKey("border_ports.id"), nullable=True, index=True)
+    border_port_id = Column(
+        Integer, ForeignKey("border_ports.id"), nullable=True, index=True
+    )
     operational_status = Column(String, nullable=True)
     update_time = Column(DateTime(timezone=True), nullable=True)
     delay_minutes = Column(Integer, nullable=True)
     lanes_open = Column(Integer, nullable=True)
-    primary_lane_type = Column(SQLAlchemyEnum(PrimaryLaneType, native_enum=False), nullable=True)
-    secondary_lane_type = Column(SQLAlchemyEnum(SecondaryLaneType, native_enum=False), nullable=True)
+    primary_lane_type = Column(
+        SQLAlchemyEnum(PrimaryLaneType, native_enum=False), nullable=True
+    )
+    secondary_lane_type = Column(
+        SQLAlchemyEnum(SecondaryLaneType, native_enum=False), nullable=True
+    )
 
     border_port = relationship("BorderPort", back_populates="wait_times")
 
