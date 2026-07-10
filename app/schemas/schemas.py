@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -81,7 +81,7 @@ class WaitTimeHistoryRead(BaseModel):
     lanes_open: Optional[int] = None
     primary_lane_type: PrimaryLaneType
     secondary_lane_type: SecondaryLaneType
-    wait_times: List[WaitTimeHistoryEntry]
+    wait_times: list[WaitTimeHistoryEntry]
 
 
 class BorderTimeImportCreate(BaseModel):

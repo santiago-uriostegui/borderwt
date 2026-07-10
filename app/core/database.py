@@ -1,45 +1,47 @@
-import os
+from datetime import datetime
 from enum import Enum as PyEnum
+from typing import Optional
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Enum as SQLAlchemyEnum,
-    ForeignKey,
-    Integer,
-    String,
-    create_engine,
-)
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://devs@localhost:5432/borderwt",
+from sqlalchemy import DateTime, ForeignKey, create_engine
+from sqlalchemy import Enum as SQLAlchemyEnum
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    sessionmaker,
 )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+from app.core.config import get_settings
+
+engine = create_engine(get_settings().database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class BorderTimeImport(Base):
     __tablename__ = "border_time_imports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    import_time = Column(DateTime(timezone=True), nullable=False)
-    borderport_total = Column(Integer, nullable=False)
-    waittime_total = Column(Integer, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    import_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    borderport_total: Mapped[int]
+    waittime_total: Mapped[int]
 
 
 class BorderPort(Base):
     __tablename__ = "border_ports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    port_number = Column(String, nullable=False, unique=True, index=True)
-    border = Column(String, nullable=True)
-    port_name = Column(String, nullable=True)
-    hours = Column(String, nullable=True)
-    port_status = Column(String, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    port_number: Mapped[str] = mapped_column(unique=True, index=True)
+    border: Mapped[Optional[str]]
+    port_name: Mapped[Optional[str]]
+    hours: Mapped[Optional[str]]
+    port_status: Mapped[Optional[str]]
+
+    wait_times: Mapped[list["WaitTime"]] = relationship(back_populates="border_port")
 
 
 class PrimaryLaneType(str, PyEnum):
@@ -58,22 +60,21 @@ class SecondaryLaneType(str, PyEnum):
 class WaitTime(Base):
     __tablename__ = "wait_times"
 
-    id = Column(Integer, primary_key=True, index=True)
-    border_port_id = Column(
-        Integer, ForeignKey("border_ports.id"), nullable=True, index=True
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    border_port_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("border_ports.id"), index=True
     )
-    operational_status = Column(String, nullable=True)
-    update_time = Column(DateTime(timezone=True), nullable=True)
-    delay_minutes = Column(Integer, nullable=True)
-    lanes_open = Column(Integer, nullable=True)
-    primary_lane_type = Column(
-        SQLAlchemyEnum(PrimaryLaneType, native_enum=False), nullable=True
+    operational_status: Mapped[Optional[str]]
+    update_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    delay_minutes: Mapped[Optional[int]]
+    lanes_open: Mapped[Optional[int]]
+    primary_lane_type: Mapped[Optional[PrimaryLaneType]] = mapped_column(
+        SQLAlchemyEnum(PrimaryLaneType, native_enum=False)
     )
-    secondary_lane_type = Column(
-        SQLAlchemyEnum(SecondaryLaneType, native_enum=False), nullable=True
+    secondary_lane_type: Mapped[Optional[SecondaryLaneType]] = mapped_column(
+        SQLAlchemyEnum(SecondaryLaneType, native_enum=False)
     )
 
-    border_port = relationship("BorderPort", back_populates="wait_times")
-
-
-BorderPort.wait_times = relationship("WaitTime", back_populates="border_port")
+    border_port: Mapped[Optional["BorderPort"]] = relationship(
+        back_populates="wait_times"
+    )
