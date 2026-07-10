@@ -110,12 +110,12 @@ duplicated. Each run also logs a summary row to `border_time_imports`.
 
 - Via API:
   ```bash
-  curl -X POST "http://127.0.0.1:8000/tasks/sample?name=Alice"
+  curl -X POST "http://127.0.0.1:8000/tasks/import-border-wait-times"
   ```
 
 - Via Python:
   ```bash
-  python -c "from app.services.celery_app import import_border_wait_times; print(import_border_wait_times.delay('Alice').id)"
+  python -c "from app.services.celery_app import import_border_wait_times; print(import_border_wait_times.delay().id)"
   ```
 
 Open http://127.0.0.1:8000/docs for the interactive API docs.
