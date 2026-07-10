@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -28,6 +29,13 @@ from app.schemas.schemas import (
 )
 
 app = FastAPI(title="BorderWT API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5183", "http://127.0.0.1:5183"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_db():
@@ -188,6 +196,7 @@ def list_wait_times_by_border_port_and_lane_types(
     newest = wait_times[0] if wait_times else None
     return WaitTimeHistoryRead(
         operational_status=newest.operational_status if newest else None,
+        current_wait=newest.delay_minutes if newest else None,
         lanes_open=newest.lanes_open if newest else None,
         primary_lane_type=primary_lane_type,
         secondary_lane_type=secondary_lane_type,
