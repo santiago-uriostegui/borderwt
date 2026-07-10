@@ -2,13 +2,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from app.services.celery_app import celery_app
-from app.services.connector import fetch_border_wait_times_xml
-from app.services.parser import (
-    find_stripped_text,
-    parse_optional_int,
-    parse_update_time,
-)
 from app.core.database import (
     BorderPort,
     BorderTimeImport,
@@ -17,19 +10,34 @@ from app.core.database import (
     SessionLocal,
     WaitTime,
 )
+from app.core.logging import get_logger
+from app.services.celery_app import celery_app
+from app.services.connector import BorderWaitTimeFetchError, fetch_border_wait_times_xml
+from app.services.parser import (
+    find_stripped_text,
+    parse_optional_int,
+    parse_update_time,
+)
+
+logger = get_logger(__name__)
 
 INVALID_OPERATIONAL_STATUSES = {"N/A", "Lanes Closed", "Update Pending"}
 
 
-@celery_app.task(name="app.services.celery_app.import_border_wait_times")
+@celery_app.task(
+    name="app.services.celery_app.import_border_wait_times",
+    autoretry_for=(BorderWaitTimeFetchError,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    max_retries=3,
+)
 def import_border_wait_times() -> dict:
+    logger.info("Starting border wait time import")
     root = fetch_border_wait_times_xml()
     created_ports = []
     created_wait_times = []
 
-    def is_within_one_hour(
-        a: Optional[datetime], b: Optional[datetime]
-    ) -> bool:
+    def is_within_one_hour(a: Optional[datetime], b: Optional[datetime]) -> bool:
         if a is None or b is None:
             return False
 
@@ -59,9 +67,7 @@ def import_border_wait_times() -> dict:
                     border=find_stripped_text(port_element, "border"),
                     port_name=find_stripped_text(port_element, "port_name"),
                     hours=find_stripped_text(port_element, "hours"),
-                    port_status=find_stripped_text(
-                        port_element, "port_status"
-                    ),
+                    port_status=find_stripped_text(port_element, "port_status"),
                 )
                 session.add(border_port)
                 session.flush()
@@ -91,8 +97,7 @@ def import_border_wait_times() -> dict:
                         .filter(
                             WaitTime.border_port_id == border_port.id,
                             WaitTime.primary_lane_type == primary_lane_type,
-                            WaitTime.secondary_lane_type
-                            == secondary_lane_type,
+                            WaitTime.secondary_lane_type == secondary_lane_type,
                             WaitTime.update_time.isnot(None),
                         )
                         .order_by(WaitTime.update_time.desc())
@@ -143,6 +148,12 @@ def import_border_wait_times() -> dict:
         )
 
         session.commit()
+
+    logger.info(
+        "Finished border wait time import: %d ports found, %d wait times processed",
+        len(root.findall("port")),
+        len(created_wait_times),
+    )
 
     return {
         "ports_found": len(root.findall("port")),

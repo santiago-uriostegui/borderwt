@@ -9,21 +9,27 @@ A FastAPI + Celery service that ingests U.S. CBP border wait time data (from
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
+   # or, for linting/type-checking/tests too:
+   pip install -r requirements-dev.txt
    ```
-3. Start Redis (if not already running):
+3. Copy `.env.example` to `.env` and adjust values as needed. All settings are
+   validated centrally in `app/core/config.py` (`pydantic-settings`) — every
+   module (`database.py`, `celery_app.py`, `connector.py`, CORS in `main.py`)
+   reads from there instead of calling `os.getenv` directly.
+5. Start Redis (if not already running):
    ```bash
    redis-server
    ```
-4. Start PostgreSQL and run migrations (see [PostgreSQL](#postgresql) below).
-5. Start the FastAPI server:
+6. Start PostgreSQL and run migrations (see [PostgreSQL](#postgresql) below).
+7. Start the FastAPI server:
    ```bash
    uvicorn app.api.main:app --reload
    ```
-6. Start a Celery worker in a second terminal:
+8. Start a Celery worker in a second terminal:
    ```bash
    celery -A app.services.celery_app worker --loglevel=info
    ```
-7. Start Celery beat in a third terminal, so the import task runs automatically
+9. Start Celery beat in a third terminal, so the import task runs automatically
    (every 5 minutes, see `beat_schedule` in `app/services/celery_app.py`):
    ```bash
    celery -A app.services.celery_app beat --loglevel=info
@@ -62,7 +68,9 @@ Run this again any time you pull changes that include a new migration under
 ### Example requests
 
 Request/response bodies are validated with Pydantic models (see `app/schemas/schemas.py`).
-Create endpoints take a JSON body rather than query params.
+Create endpoints take a JSON body rather than query params. List endpoints
+(`/border-ports`, `/wait-times`, `/border-time-imports`) accept `limit`
+(1-200, default 50) and `offset` (default 0) query params.
 
 Create a border port:
 ```bash
@@ -71,9 +79,9 @@ curl -X POST "http://127.0.0.1:8000/border-ports" \
   -d '{"port_number": "250501", "border": "Mexico", "port_name": "Tecate"}'
 ```
 
-List border ports:
+List border ports (paginated — `limit` defaults to 50/max 200, `offset` defaults to 0):
 ```bash
-curl http://127.0.0.1:8000/border-ports
+curl "http://127.0.0.1:8000/border-ports?limit=20&offset=0"
 ```
 
 Create a wait time (`primary_lane_type` / `secondary_lane_type` must match the
@@ -119,3 +127,28 @@ duplicated. Each run also logs a summary row to `border_time_imports`.
   ```
 
 Open http://127.0.0.1:8000/docs for the interactive API docs.
+
+## Development
+
+Install dev dependencies with `pip install -r requirements-dev.txt`, then:
+
+```bash
+ruff check .            # lint
+ruff format .           # format
+mypy app                # type-check
+pytest                  # unit + integration tests (uses an in-memory SQLite DB)
+```
+
+Optionally install the pre-commit hooks so lint/format run automatically on
+each commit:
+
+```bash
+pre-commit install
+```
+
+### CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every push/PR:
+`lint` (ruff + mypy), `test` (pytest against SQLite), and `migrations` (spins
+up Postgres, runs `alembic upgrade head`, then `alembic check` to catch model
+drift against the migration history).

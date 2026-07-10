@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+exclude = ["alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI's Depends()/Query() defaults are the idiomatic DI pattern, not a bug.
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
+exclude = ["alembic/"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=app --cov-report=term-missing"
+testpaths = ["tests"]
+pythonpath = ["."]

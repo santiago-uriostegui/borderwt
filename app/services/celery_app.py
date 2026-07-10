@@ -1,14 +1,13 @@
-import os
-
 from celery import Celery
 
-broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-result_backend = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+from app.core.config import get_settings
+
+settings = get_settings()
 
 celery_app = Celery(
     "borderwt",
-    broker=broker_url,
-    backend=result_backend,
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend,
 )
 
 celery_app.conf.update(
