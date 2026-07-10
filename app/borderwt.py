@@ -4,7 +4,11 @@ from zoneinfo import ZoneInfo
 
 from app.celery_app import celery_app
 from app.connector import fetch_border_wait_times_xml
-from app.parser import find_stripped_text, parse_optional_int, parse_update_time
+from app.parser import (
+    find_stripped_text,
+    parse_optional_int,
+    parse_update_time,
+)
 from app.database import (
     BorderPort,
     BorderTimeImport,
@@ -23,17 +27,23 @@ def import_border_wait_times(name: str) -> dict:
     created_ports = []
     created_wait_times = []
 
-    def is_within_one_hour(a: Optional[datetime], b: Optional[datetime]) -> bool:
+    def is_within_one_hour(
+        a: Optional[datetime], b: Optional[datetime]
+    ) -> bool:
         if a is None or b is None:
             return False
 
         utc = ZoneInfo("UTC")
-        a_utc = a.replace(tzinfo=utc) if a.tzinfo is None else a.astimezone(utc)
-        b_utc = b.replace(tzinfo=utc) if b.tzinfo is None else b.astimezone(utc)
-        return abs(a_utc - b_utc) < timedelta(hours=1)
+        if a.tzinfo is None:
+            a = a.replace(tzinfo=utc)
+        if b.tzinfo is None:
+            b = b.replace(tzinfo=utc)
+        return abs(a.astimezone(utc) - b.astimezone(utc)) < timedelta(hours=1)
 
     with SessionLocal() as session:
-        existing_ports = {port.port_number: port for port in session.query(BorderPort).all()}
+        existing_ports = {
+            port.port_number: port for port in session.query(BorderPort).all()
+        }
 
         for port_element in root.findall("port"):
             port_number = find_stripped_text(port_element, "port_number")
@@ -49,7 +59,9 @@ def import_border_wait_times(name: str) -> dict:
                     border=find_stripped_text(port_element, "border"),
                     port_name=find_stripped_text(port_element, "port_name"),
                     hours=find_stripped_text(port_element, "hours"),
-                    port_status=find_stripped_text(port_element, "port_status"),
+                    port_status=find_stripped_text(
+                        port_element, "port_status"
+                    ),
                 )
                 session.add(border_port)
                 session.flush()
@@ -62,11 +74,15 @@ def import_border_wait_times(name: str) -> dict:
                     continue
 
                 for secondary_lane_type in SecondaryLaneType:
-                    secondary_container = primary_container.find(secondary_lane_type.value)
+                    secondary_container = primary_container.find(
+                        secondary_lane_type.value
+                    )
                     if secondary_container is None:
                         continue
 
-                    operational_status = find_stripped_text(secondary_container, "operational_status")
+                    operational_status = find_stripped_text(
+                        secondary_container, "operational_status"
+                    )
                     if operational_status in INVALID_OPERATIONAL_STATUSES:
                         continue
 
@@ -75,7 +91,8 @@ def import_border_wait_times(name: str) -> dict:
                         .filter(
                             WaitTime.border_port_id == border_port.id,
                             WaitTime.primary_lane_type == primary_lane_type,
-                            WaitTime.secondary_lane_type == secondary_lane_type,
+                            WaitTime.secondary_lane_type
+                            == secondary_lane_type,
                             WaitTime.update_time.isnot(None),
                         )
                         .order_by(WaitTime.update_time.desc())
@@ -96,8 +113,12 @@ def import_border_wait_times(name: str) -> dict:
                             border_port_id=border_port.id,
                             operational_status=operational_status,
                             update_time=incoming_update_time,
-                            delay_minutes=parse_optional_int(secondary_container.findtext("delay_minutes")),
-                            lanes_open=parse_optional_int(secondary_container.findtext("lanes_open")),
+                            delay_minutes=parse_optional_int(
+                                secondary_container.findtext("delay_minutes")
+                            ),
+                            lanes_open=parse_optional_int(
+                                secondary_container.findtext("lanes_open")
+                            ),
                             primary_lane_type=primary_lane_type,
                             secondary_lane_type=secondary_lane_type,
                         )

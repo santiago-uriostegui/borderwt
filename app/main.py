@@ -6,7 +6,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.celery_app import import_border_wait_times
-from app.database import BorderPort, BorderTimeImport, PrimaryLaneType, SecondaryLaneType, SessionLocal, WaitTime
+from app.database import (
+    BorderPort,
+    BorderTimeImport,
+    PrimaryLaneType,
+    SecondaryLaneType,
+    SessionLocal,
+    WaitTime,
+)
 from app.schemas import (
     BorderPortCreate,
     BorderPortNameRead,
@@ -53,7 +60,9 @@ def trigger_sample_task(name: str = "world") -> dict[str, str]:
 
 
 @app.post("/border-ports", response_model=BorderPortRead)
-def create_border_port(payload: BorderPortCreate, db: Session = Depends(get_db)) -> BorderPort:
+def create_border_port(
+    payload: BorderPortCreate, db: Session = Depends(get_db)
+) -> BorderPort:
     port = BorderPort(**payload.model_dump())
     db.add(port)
     db.commit()
@@ -68,33 +77,53 @@ def list_border_ports(db: Session = Depends(get_db)) -> List[BorderPort]:
 
 @app.get("/border-ports/borders", response_model=List[str])
 def list_unique_borders(db: Session = Depends(get_db)) -> List[str]:
-    borders = db.query(BorderPort.border).filter(BorderPort.border.isnot(None)).distinct().all()
+    borders = (
+        db.query(BorderPort.border)
+        .filter(BorderPort.border.isnot(None))
+        .distinct()
+        .all()
+    )
     return sorted(border for (border,) in borders)
 
 
-@app.get("/border-ports/{border}/port-names", response_model=List[BorderPortNameRead])
-def list_port_names_by_border(border: str, db: Session = Depends(get_db)) -> List[BorderPort]:
+@app.get(
+    "/border-ports/{border}/port-names",
+    response_model=List[BorderPortNameRead],
+)
+def list_port_names_by_border(
+    border: str, db: Session = Depends(get_db)
+) -> List[BorderPort]:
     return (
         db.query(BorderPort)
-        .filter(BorderPort.border == border, BorderPort.port_name.isnot(None))
+        .filter(
+            BorderPort.border == border, BorderPort.port_name.isnot(None)
+        )
         .order_by(BorderPort.port_name)
         .all()
     )
 
 
-@app.get("/border-ports/{border_port_id}/primary-lane-types", response_model=List[BorderPortPrimaryLaneTypeRead])
+@app.get(
+    "/border-ports/{border_port_id}/primary-lane-types",
+    response_model=List[BorderPortPrimaryLaneTypeRead],
+)
 def list_primary_lane_types_by_border_port(
     border_port_id: int, db: Session = Depends(get_db)
 ) -> List[BorderPortPrimaryLaneTypeRead]:
     lane_types = (
         db.query(WaitTime.primary_lane_type)
-        .filter(WaitTime.border_port_id == border_port_id, WaitTime.primary_lane_type.isnot(None))
+        .filter(
+            WaitTime.border_port_id == border_port_id,
+            WaitTime.primary_lane_type.isnot(None),
+        )
         .distinct()
         .all()
     )
     return sorted(
         (
-            BorderPortPrimaryLaneTypeRead(border_port_id=border_port_id, primary_lane_type=lane_type)
+            BorderPortPrimaryLaneTypeRead(
+                border_port_id=border_port_id, primary_lane_type=lane_type
+            )
             for (lane_type,) in lane_types
         ),
         key=lambda item: item.primary_lane_type.value,
@@ -102,7 +131,8 @@ def list_primary_lane_types_by_border_port(
 
 
 @app.get(
-    "/border-ports/{border_port_id}/primary-lane-types/{primary_lane_type}/secondary-lane-types",
+    "/border-ports/{border_port_id}/primary-lane-types/{primary_lane_type}"
+    "/secondary-lane-types",
     response_model=List[BorderPortSecondaryLaneTypeRead],
 )
 def list_secondary_lane_types_by_border_port_and_primary_lane_type(
@@ -166,7 +196,9 @@ def list_wait_times_by_border_port_and_lane_types(
 
 
 @app.post("/wait-times", response_model=WaitTimeRead)
-def create_wait_time(payload: WaitTimeCreate, db: Session = Depends(get_db)) -> WaitTime:
+def create_wait_time(
+    payload: WaitTimeCreate, db: Session = Depends(get_db)
+) -> WaitTime:
     wait_time = WaitTime(**payload.model_dump())
     db.add(wait_time)
     db.commit()
@@ -180,7 +212,9 @@ def list_wait_times(db: Session = Depends(get_db)) -> List[WaitTime]:
 
 
 @app.post("/border-time-imports", response_model=BorderTimeImportRead)
-def create_border_time_import(payload: BorderTimeImportCreate, db: Session = Depends(get_db)) -> BorderTimeImport:
+def create_border_time_import(
+    payload: BorderTimeImportCreate, db: Session = Depends(get_db)
+) -> BorderTimeImport:
     border_time_import = BorderTimeImport(
         import_time=payload.import_time or datetime.now(timezone.utc),
         borderport_total=payload.borderport_total,
@@ -193,7 +227,9 @@ def create_border_time_import(payload: BorderTimeImportCreate, db: Session = Dep
 
 
 @app.get("/border-time-imports", response_model=List[BorderTimeImportRead])
-def list_border_time_imports(db: Session = Depends(get_db)) -> List[BorderTimeImport]:
+def list_border_time_imports(
+    db: Session = Depends(get_db),
+) -> List[BorderTimeImport]:
     return db.query(BorderTimeImport).all()
 
 
