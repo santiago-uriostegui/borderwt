@@ -17,16 +17,16 @@ A FastAPI + Celery service that ingests U.S. CBP border wait time data (from
 4. Start PostgreSQL and run migrations (see [PostgreSQL](#postgresql) below).
 5. Start the FastAPI server:
    ```bash
-   uvicorn app.main:app --reload
+   uvicorn app.api.main:app --reload
    ```
 6. Start a Celery worker in a second terminal:
    ```bash
-   celery -A app.celery_app worker --loglevel=info
+   celery -A app.services.celery_app worker --loglevel=info
    ```
 7. Start Celery beat in a third terminal, so the import task runs automatically
-   (every 5 minutes, see `beat_schedule` in `app/celery_app.py`):
+   (every 5 minutes, see `beat_schedule` in `app/services/celery_app.py`):
    ```bash
-   celery -A app.celery_app beat --loglevel=info
+   celery -A app.services.celery_app beat --loglevel=info
    ```
 
 ## PostgreSQL
@@ -61,7 +61,7 @@ Run this again any time you pull changes that include a new migration under
 
 ### Example requests
 
-Request/response bodies are validated with Pydantic models (see `app/schemas.py`).
+Request/response bodies are validated with Pydantic models (see `app/schemas/schemas.py`).
 Create endpoints take a JSON body rather than query params.
 
 Create a border port:
@@ -77,7 +77,7 @@ curl http://127.0.0.1:8000/border-ports
 ```
 
 Create a wait time (`primary_lane_type` / `secondary_lane_type` must match the
-`PrimaryLaneType` / `SecondaryLaneType` enum values in `app/database.py`):
+`PrimaryLaneType` / `SecondaryLaneType` enum values in `app/core/database.py`):
 ```bash
 curl -X POST "http://127.0.0.1:8000/wait-times" \
   -H "Content-Type: application/json" \
@@ -115,7 +115,7 @@ duplicated. Each run also logs a summary row to `border_time_imports`.
 
 - Via Python:
   ```bash
-  python -c "from app.celery_app import import_border_wait_times; print(import_border_wait_times.delay('Alice').id)"
+  python -c "from app.services.celery_app import import_border_wait_times; print(import_border_wait_times.delay('Alice').id)"
   ```
 
 Open http://127.0.0.1:8000/docs for the interactive API docs.

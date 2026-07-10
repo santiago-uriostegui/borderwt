@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.database import PrimaryLaneType, SecondaryLaneType
+from app.core.database import PrimaryLaneType, SecondaryLaneType
 
 
 class BorderPortCreate(BaseModel):

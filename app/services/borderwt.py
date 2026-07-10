@@ -2,14 +2,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from app.celery_app import celery_app
-from app.connector import fetch_border_wait_times_xml
-from app.parser import (
+from app.services.celery_app import celery_app
+from app.services.connector import fetch_border_wait_times_xml
+from app.services.parser import (
     find_stripped_text,
     parse_optional_int,
     parse_update_time,
 )
-from app.database import (
+from app.core.database import (
     BorderPort,
     BorderTimeImport,
     PrimaryLaneType,
@@ -21,7 +21,7 @@ from app.database import (
 INVALID_OPERATIONAL_STATUSES = {"N/A", "Lanes Closed", "Update Pending"}
 
 
-@celery_app.task(name="app.celery_app.import_border_wait_times")
+@celery_app.task(name="app.services.celery_app.import_border_wait_times")
 def import_border_wait_times(name: str) -> dict:
     root = fetch_border_wait_times_xml()
     created_ports = []

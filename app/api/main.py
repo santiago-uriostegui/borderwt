@@ -5,8 +5,8 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from app.celery_app import import_border_wait_times
-from app.database import (
+from app.services.celery_app import import_border_wait_times
+from app.core.database import (
     BorderPort,
     BorderTimeImport,
     PrimaryLaneType,
@@ -14,7 +14,7 @@ from app.database import (
     SessionLocal,
     WaitTime,
 )
-from app.schemas import (
+from app.schemas.schemas import (
     BorderPortCreate,
     BorderPortNameRead,
     BorderPortPrimaryLaneTypeRead,
@@ -236,4 +236,4 @@ def list_border_time_imports(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.api.main:app", host="0.0.0.0", port=8000, reload=True)
