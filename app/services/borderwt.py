@@ -22,7 +22,7 @@ INVALID_OPERATIONAL_STATUSES = {"N/A", "Lanes Closed", "Update Pending"}
 
 
 @celery_app.task(name="app.services.celery_app.import_border_wait_times")
-def import_border_wait_times(name: str) -> dict:
+def import_border_wait_times() -> dict:
     root = fetch_border_wait_times_xml()
     created_ports = []
     created_wait_times = []
@@ -145,7 +145,6 @@ def import_border_wait_times(name: str) -> dict:
         session.commit()
 
     return {
-        "name": name,
         "ports_found": len(root.findall("port")),
         "created_ports": created_ports,
         "created_wait_times": created_wait_times,

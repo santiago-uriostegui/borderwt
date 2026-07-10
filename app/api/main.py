@@ -53,9 +53,9 @@ def favicon() -> JSONResponse:
     return JSONResponse(status_code=204, content=None)
 
 
-@app.post("/tasks/sample")
-def trigger_sample_task(name: str = "world") -> dict[str, str]:
-    task = import_border_wait_times.delay(name)
+@app.post("/tasks/import-border-wait-times")
+def trigger_import_task() -> dict[str, str]:
+    task = import_border_wait_times.delay()
     return {"task_id": task.id, "status": "queued"}
 
 
