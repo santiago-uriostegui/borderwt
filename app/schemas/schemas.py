@@ -77,6 +77,7 @@ class WaitTimeHistoryEntry(BaseModel):
 
 class WaitTimeHistoryRead(BaseModel):
     operational_status: Optional[str] = None
+    current_wait: Optional[int] = None
     lanes_open: Optional[int] = None
     primary_lane_type: PrimaryLaneType
     secondary_lane_type: SecondaryLaneType
