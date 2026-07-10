@@ -19,7 +19,7 @@ celery_app.conf.update(
     enable_utc=True,
     beat_schedule={
         "sample-task-every-hour": {
-            "task": "app.celery_app.import_border_wait_times",
+            "task": "app.services.celery_app.import_border_wait_times",
             "schedule": 5 * 60,
             "args": ("scheduled",),
         },
@@ -28,4 +28,4 @@ celery_app.conf.update(
 
 # Imported after celery_app is configured, since borderwt.py needs it to
 # register the task; also re-exports import_border_wait_times for callers.
-from app.borderwt import import_border_wait_times  # noqa: E402,F401
+from app.services.borderwt import import_border_wait_times  # noqa: E402,F401
